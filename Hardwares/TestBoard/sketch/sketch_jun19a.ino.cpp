@@ -1,4 +1,4 @@
-#line 1 "C:\\Users\\qwer1\\Desktop\\array\\sketch_jun19a\\sketch_jun19a.ino"
+
 /*********************************************************************************
   *Copyright(C),Jilin University China
   *FileName:  SensorArraySystem
