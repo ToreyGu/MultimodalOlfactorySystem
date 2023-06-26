@@ -14,7 +14,7 @@
      2. OledPrint_xxxx()
      3. EventSW1()/EventSW2()
      4. SendSerialBuffer()
-
+     5. SendBleBuffer()
   *History: 
      1.Date:        2023 July 20
        Author:      Torey Gu(Gu Tianyi) 
@@ -25,6 +25,13 @@
                               4.HTS221 signal input
                               5.SW1/SW2 interrupt
 **********************************************************************************/
+
+#define BleModeFlag 0
+#define StringLength 5
+#define OledStandbyOn 0
+#define DataStreamOn 1
+// mode = 1 send Float Data
+// mode = 0 send Char Data
 
 /*HeadFiles*/
 //board Headfile
@@ -64,7 +71,7 @@ extern const int PinU8 = A7;
 //keyboard in
 const int buttonSW1 = D10;
 const int buttonSW2 = D9;
-extern bool oledMode = 0;
+extern bool oledMode = OledStandbyOn;
 extern bool bufferFlag = 0;
 //sensor value
 float ValueU3 = 0;
@@ -76,7 +83,8 @@ float ValueU8 = 0;
 //humi value
 float humi = 0;
 
-
+extern bool BleMode =  BleModeFlag;
+extern bool DataStreamMode = DataStreamOn;
 /* BLE configs */
 BLEService SensorArray("1809");
 BLEFloatCharacteristic SensorSignalHumi("19B10011-E8F2-537E-4F6C-D104768A1212" , BLERead | BLENotify);
@@ -87,6 +95,14 @@ BLEFloatCharacteristic SensorSignalU6("19B10011-E8F2-537E-4F6C-D104768A1216" , B
 BLEFloatCharacteristic SensorSignalU7("19B10011-E8F2-537E-4F6C-D104768A1217" , BLERead | BLENotify);
 BLEFloatCharacteristic SensorSignalU8("19B10011-E8F2-537E-4F6C-D104768A1218" , BLERead | BLENotify);
 
+BLEStringCharacteristic SensorDataHumi("19B10011-E8F2-537E-4F6C-D104768A1222" , BLERead | BLENotify,StringLength);
+BLEStringCharacteristic SensorDataU3("19B10011-E8F2-537E-4F6C-D104768A1223" , BLERead | BLENotify,StringLength);
+BLEStringCharacteristic SensorDataU4("19B10011-E8F2-537E-4F6C-D104768A1224" , BLERead | BLENotify,StringLength);
+BLEStringCharacteristic SensorDataU5("19B10011-E8F2-537E-4F6C-D104768A1225" , BLERead | BLENotify,StringLength);
+BLEStringCharacteristic SensorDataU6("19B10011-E8F2-537E-4F6C-D104768A1226" , BLERead | BLENotify,StringLength);
+BLEStringCharacteristic SensorDataU7("19B10011-E8F2-537E-4F6C-D104768A1227" , BLERead | BLENotify,StringLength);
+BLEStringCharacteristic SensorDataU8("19B10011-E8F2-537E-4F6C-D104768A1228" , BLERead | BLENotify,StringLength);
+
 /* Functions */
 std::string Convert(float Num){//convert float to string
     std::ostringstream oss;
@@ -96,18 +112,18 @@ std::string Convert(float Num){//convert float to string
 }
 
 void readSensorValue(){//read Analog Signal
-    ValueU3 = float(analogRead(PinU3)*3.3/1024);
-    ValueU4 = float(analogRead(PinU4)*3.3/1024);
-    ValueU5 = float(analogRead(PinU5)*3.3/1024);
-    ValueU6 = float(analogRead(PinU6)*3.3/1024);
-    ValueU7 = float(analogRead(PinU7)*3.3/1024);
-    ValueU8 = float(analogRead(PinU8)*3.3/1024);
+    ValueU3 = float(analogRead(PinU3)*3.3/1024)+0.001;
+    ValueU4 = float(analogRead(PinU4)*3.3/1024)+0.001;
+    ValueU5 = float(analogRead(PinU5)*3.3/1024)+0.001;
+    ValueU6 = float(analogRead(PinU6)*3.3/1024)+0.001;
+    ValueU7 = float(analogRead(PinU7)*3.3/1024)+0.001;
+    ValueU8 = float(analogRead(PinU8)*3.3/1024)+0.001;
 }
 
 void OledStandby(){//System Standby GUI
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_ncenB08_tr);
-    u8g2.drawStr(ResLeft-10,25,"System is Working");
+    u8g2.drawStr(ResLeft,25,"Data is Streaming");
 
     humi = HTS.readHumidity();
     u8g2.drawStr(ResLeft+5,60,"Humi:");
@@ -122,22 +138,22 @@ void OledPrintSeneor(){//Show array sigal
   u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
 
   u8g2.drawStr(NameLeft,25,"U3:");
-  u8g2.drawStr(ResLeft,25,Convert(ValueU3).substr(0,6).c_str());
+  u8g2.drawStr(ResLeft,25,Convert(ValueU3).substr(0,StringLength).c_str());
 
   u8g2.drawStr(NameRight,25,"U4:");
-  u8g2.drawStr(ResRight,25,Convert(ValueU4).substr(0,6).c_str());
+  u8g2.drawStr(ResRight,25,Convert(ValueU4).substr(0,StringLength).c_str());
 
   u8g2.drawStr(NameLeft,40,"U5:");
-  u8g2.drawStr(ResLeft,40,Convert(ValueU5).substr(0,6).c_str());
+  u8g2.drawStr(ResLeft,40,Convert(ValueU5).substr(0,StringLength).c_str());
 
   u8g2.drawStr(NameRight,40,"U6:");
-  u8g2.drawStr(ResRight,40,Convert(ValueU6).substr(0,6).c_str());
+  u8g2.drawStr(ResRight,40,Convert(ValueU6).substr(0,StringLength).c_str());
 
   u8g2.drawStr(NameLeft,55,"U7:");
-  u8g2.drawStr(ResLeft,55,Convert(ValueU7).substr(0,6).c_str());
+  u8g2.drawStr(ResLeft,55,Convert(ValueU7).substr(0,StringLength).c_str());
 
   u8g2.drawStr(NameRight,55,"U8:");
-  u8g2.drawStr(ResRight,55,Convert(ValueU8).substr(0,6).c_str());
+  u8g2.drawStr(ResRight,55,Convert(ValueU8).substr(0,StringLength).c_str());
 
 }
 
@@ -158,8 +174,10 @@ void OledPrintBLE(){//Show BLE LOGO
 }
 
 void OledPrintUsb(){//Show if serial Connected
-  u8g2.setFont(u8g2_font_open_iconic_arrow_1x_t);
-  u8g2.drawGlyph(40, 15, 89);	
+  if(Serial.available()){
+    u8g2.setFont(u8g2_font_open_iconic_arrow_1x_t);
+    u8g2.drawGlyph(40, 15, 89);	}
+
 }
 
 void OledPrintHeater(){ 
@@ -174,16 +192,9 @@ void OledPrintData(){
         }
 }
 
+void SendBleBuffer(){
 
-void SendData(){//send data to serial & BLE
-    Serial.print(" U3 Value = ");Serial.println(ValueU3);
-    Serial.print(" U4 Value = ");Serial.println(ValueU4);
-    Serial.print(" U5 Value = ");Serial.println(ValueU5);
-    Serial.print(" U6 Value = ");Serial.println(ValueU6);
-    Serial.print(" U7 Value = ");Serial.println(ValueU7);
-    Serial.print(" U8 Value = ");Serial.println(ValueU8);
-    Serial.print(" Humi = ");Serial.print(humi) ;Serial.println(" % ") ;
-
+ if(BleMode){
     SensorSignalHumi.writeValue(humi);
     SensorSignalU3.writeValue(ValueU3);
     SensorSignalU4.writeValue(ValueU4);
@@ -191,21 +202,55 @@ void SendData(){//send data to serial & BLE
     SensorSignalU6.writeValue(ValueU6);
     SensorSignalU7.writeValue(ValueU7);
     SensorSignalU8.writeValue(ValueU8);
+ }else{
+    SensorDataHumi.writeValue(Convert(humi).substr(0,2).c_str());
+    SensorDataU3.writeValue(Convert(ValueU3).substr(0,StringLength).c_str());
+    SensorDataU4.writeValue(Convert(ValueU4).substr(0,StringLength).c_str());
+    SensorDataU5.writeValue(Convert(ValueU5).substr(0,StringLength).c_str());
+    SensorDataU6.writeValue(Convert(ValueU6).substr(0,StringLength).c_str());
+    SensorDataU7.writeValue(Convert(ValueU7).substr(0,StringLength).c_str());
+    SensorDataU8.writeValue(Convert(ValueU8).substr(0,StringLength).c_str());
+ }
 
+}
+
+void SendData(){//send data to serial & BLE
+
+    Serial.print("U3 Value = ");Serial.println(Convert(ValueU3).substr(0,StringLength).c_str());
+    Serial.print("U4 Value = ");Serial.println(Convert(ValueU4).substr(0,StringLength).c_str());
+    Serial.print("U5 Value = ");Serial.println(Convert(ValueU5).substr(0,StringLength).c_str());
+    Serial.print("U6 Value = ");Serial.println(Convert(ValueU6).substr(0,StringLength).c_str());
+    Serial.print("U7 Value = ");Serial.println(Convert(ValueU7).substr(0,StringLength).c_str());
+    Serial.print("U8 Value = ");Serial.println(Convert(ValueU8).substr(0,StringLength).c_str());
+    Serial.print("Humi = ");Serial.print(Convert(humi).substr(0,2).c_str()) ;Serial.println(" % ") ;
+
+    SendBleBuffer();
 
     u8g2.setFont(u8g2_font_open_iconic_arrow_1x_t);
     u8g2.drawGlyph(60, 15, 85);	
 }
 
-void SendSerialBuffer(){//Serial Communication Protocol with host
+void SendSingleBuffer(){//Serial Communication Protocol with host
   if(bufferFlag){
     SendData();
     bufferFlag = !bufferFlag;
   }
 }
 
+void SendStreamBuffer(){
+  if(DataStreamMode){
+    SendData();
+  }
+}
+
+void SendBuffer(){
+  SendSingleBuffer();
+  SendStreamBuffer();
+}
+
 void EventSW1(){//SW1 interrupt
    oledMode = !oledMode;
+   DataStreamMode = !DataStreamMode;
 }
 
 void EventSW2(){//SW2 interrupt
@@ -218,13 +263,24 @@ void InitBle(){//INIT BLE SERVICES
   BLE.setDeviceName("SensorArraySystem");
   BLE.setLocalName("SensorArray");
   BLE.setAdvertisedService(SensorArray); 
-  SensorArray.addCharacteristic(SensorSignalHumi);
-  SensorArray.addCharacteristic(SensorSignalU3);
-  SensorArray.addCharacteristic(SensorSignalU4);
-  SensorArray.addCharacteristic(SensorSignalU5);
-  SensorArray.addCharacteristic(SensorSignalU6);
-  SensorArray.addCharacteristic(SensorSignalU7);
-  SensorArray.addCharacteristic(SensorSignalU8);
+  if(BleMode){ 
+      SensorArray.addCharacteristic(SensorSignalHumi);
+      SensorArray.addCharacteristic(SensorSignalU3);
+      SensorArray.addCharacteristic(SensorSignalU4);
+      SensorArray.addCharacteristic(SensorSignalU5);
+      SensorArray.addCharacteristic(SensorSignalU6);
+      SensorArray.addCharacteristic(SensorSignalU7);
+      SensorArray.addCharacteristic(SensorSignalU8);
+  }else{
+      SensorArray.addCharacteristic(SensorDataHumi);
+      SensorArray.addCharacteristic(SensorDataU3);
+      SensorArray.addCharacteristic(SensorDataU4);
+      SensorArray.addCharacteristic(SensorDataU5);
+      SensorArray.addCharacteristic(SensorDataU6);
+      SensorArray.addCharacteristic(SensorDataU7);
+      SensorArray.addCharacteristic(SensorDataU8);
+  }
+
   BLE.addService(SensorArray);
   BLE.advertise();
 }
@@ -248,8 +304,7 @@ void loop() {
   OledPrintData();
   OledPrintBLE();
   OledPrintUsb();
-  SendSerialBuffer();
-  //SendData();
+  SendBuffer();
   u8g2.sendBuffer();
   delay(500);
 }
